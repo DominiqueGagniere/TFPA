@@ -1,0 +1,30 @@
+---
+- name: Déploiement de la configuration HAProxy pour le reverse proxy
+  hosts: tag_rproxy
+  become: true  # Indispensable pour installer et configurer
+  
+  tasks:
+    - name: 1. Installer HAProxy
+      ansible.builtin.package:
+        name: haproxy
+        state: present
+
+    - name: 2. Copier le fichier de configuration
+      ansible.builtin.template:
+        src: templates/haproxy.j2
+        dest: /etc/haproxy/haproxy.cfg
+      # Le handler ne sera appelé que si ce fichier a été modifié
+      notify: Restart HAProxy 
+
+    - name: 3. Démarrer et activer le service
+      ansible.builtin.service:
+        name: haproxy
+        state: started
+        enabled: yes
+
+  handlers:
+    # Les handlers s'exécutent tout à la fin du playbook
+    - name: Restart HAProxy
+      ansible.builtin.service: 
+        name: haproxy
+        state: restarted

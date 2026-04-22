@@ -1,0 +1,23 @@
+---
+- name: Déploiement du site web Novalys Hosting
+  hosts: tag_web
+  become: true
+
+  vars:
+    s_port: 80
+  
+  tasks:
+    - name: 1. S'assurer que Nginx est démarré et activé
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: 2. Déployer la page web Novalys personnalisée
+      ansible.builtin.template:
+        src: templates/index.html.j2
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+

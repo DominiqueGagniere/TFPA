@@ -1,0 +1,23 @@
+---
+plugin: aws_ec2
+# Indique tes régions AWS
+regions:
+  - eu-west-3
+
+# On filtre pour ne voir que les instances en cours d'exécution
+filters:
+  instance-state-name: [ 'running' ]
+
+# C'est ici que la magie opère : on crée des groupes basés sur tes TAGS Terraform
+keyed_groups:
+  - key: tags.role
+    prefix: tag
+
+# On définit les variables de connexion pour tout le monde
+compose:
+  # On utilise l'IP publique pour la connexion SSH
+  ansible_host: public_ip_address
+
+# Paramètres globaux de connexion
+hostnames:
+  - dns-name # ou public-ip-address
