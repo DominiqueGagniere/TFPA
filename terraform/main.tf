@@ -14,6 +14,63 @@ provider "aws" {
     region = "eu-west-3" 
 }
 
+# Define the policy document for managing elastic IPs
+data "aws_iam_policy_document" "ec2_elastic_ip_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "ec2:DescribeAddresses",
+      "ec2:AssociateAddress"
+    ]
+    resources = ["arn:aws:ec2:::*"]
+  }
+}
+
+# Create a new role for EC2 instances 
+resource "aws_iam_role" "ec2_manage_elasticip_role" {
+  name = var.ec2_manage_elasticip_role_name
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name = var.ec2_manage_elasticip_role_name
+  }
+}
+
+# Create an IAM policy for managing elastic IPs and attach it to the role
+resource "aws_iam_policy" "elastic_ip_management_policy" {
+  name        = "elastic-ip-management-policy"
+  description = "Allow EC2 to manage elastic IPs"
+  policy      = data.aws_iam_policy_document.ec2_elastic_ip_policy.json
+
+  tags = {
+    Name = "elastic-ip-management-policy"
+  }
+}
+
+# Link the policy to the role
+resource "aws_iam_role_policy_attachment" "attach_elastic_ip_policy" {
+  role       = aws_iam_role.ec2_manage_elasticip_role.name
+  policy_arn = aws_iam_policy.elastic_ip_management_policy.arn
+}
+
+# Create an instance profile for EC2 instances
+resource "aws_iam_instance_profile" "ec2_instance_profile" {
+  name = "ec2-instance-profile"
+  role = aws_iam_role.ec2_manage_elasticip_role.name
+}
+
 # Mention du type de ressource déployer "aws_instance" = "EC2" et son nom 
 resource "aws_instance" "www" {
   for_each = var.www_configuration
@@ -44,14 +101,15 @@ resource "aws_instance" "www" {
     }
 }
 
-resource "aws_instance" "rproxy" {
-  for_each = var.rproxy_configuration
+resource "aws_instance" "rproxymain" {
+  for_each = var.rproxymain_configuration
     # AMI of novalys_haproxy built with Packer
     ami           = "ami-0fd91a7fea6b2b38c"
     
     # AWS Free Tier compatible 
     instance_type = "t2.micro"
-    security_groups = ["ssh", "httphttps", "8404allow"]
+    security_groups = ["ssh", "httphttps", "8404allow", "vrrp"]
+    iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
 
     user_data = <<-EOT
     #cloud-config
@@ -65,6 +123,32 @@ resource "aws_instance" "rproxy" {
 
     tags = {
       Name = each.value.instance_name
-      role = "rproxy"
+      role = "rproxymain"
+    }
+}
+
+resource "aws_instance" "rproxysec" {
+  for_each = var.rproxysec_configuration
+    # AMI of novalys_haproxy built with Packer
+    ami           = "ami-0fd91a7fea6b2b38c"
+    
+    # AWS Free Tier compatible 
+    instance_type = "t2.micro"
+    security_groups = ["ssh", "httphttps", "8404allow", "vrrp"]
+    iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
+
+    user_data = <<-EOT
+    #cloud-config
+    users:
+      - name: ${var.automation_useracc_name}
+        shell: /bin/bash
+        sudo: ALL=(ALL) NOPASSWD:ALL
+        ssh_authorized_keys:
+          - ${var.automation_useracc_ssh_public_key}
+    EOT
+
+    tags = {
+      Name = each.value.instance_name
+      role = "rproxysec"
     }
 }
