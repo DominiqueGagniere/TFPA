@@ -1,30 +1,76 @@
 ---
-- name: Déploiement de la configuration HAProxy pour le reverse proxy
-  hosts: tag_rproxy
+- name: Déploiement et configuration de HAProxy et Keepalived pour les reverse proxy et le script FailOver
+  hosts: tag_rproxymain:tag_rproxysec  # On cible les deux groupes de reverse proxy
   become: true  # Indispensable pour installer et configurer
   
   tasks:
-    - name: 1. Installer HAProxy
+    - name: Install HAProxy
       ansible.builtin.package:
         name: haproxy
         state: present
 
-    - name: 2. Copier le fichier de configuration
-      ansible.builtin.template:
-        src: templates/haproxy.j2
-        dest: /etc/haproxy/haproxy.cfg
-      # Le handler ne sera appelé que si ce fichier a été modifié
-      notify: Restart HAProxy 
-
-    - name: 3. Démarrer et activer le service
+    - name: Start and activate HAProxy
       ansible.builtin.service:
         name: haproxy
         state: started
         enabled: yes
 
+    - name: Installer Keepalived
+      ansible.builtin.package:
+        name: keepalived
+        state: present
+
+    - name: Configurer le script Failover 
+      ansible.builtin.template:
+        src: templates/attach_eip.sh.j2
+        dest: /etc/keepalived/attach_eip.sh
+        mode: '0755'  # Rendre le script exécutable
+
+    - name: Copier le fichier de configuration
+      ansible.builtin.template:
+        src: templates/haproxy.j2
+        dest: /etc/haproxy/haproxy.cfg
+      # Le handler ne sera appelé que si ce fichier a été modifié
+      notify: Restart HAProxy 
   handlers:
     # Les handlers s'exécutent tout à la fin du playbook
     - name: Restart HAProxy
       ansible.builtin.service: 
         name: haproxy
+        state: restarted
+
+- name: Configurer Keepalived pour le serveur principal
+  hosts: tag_rproxymain
+  become: true
+
+  tasks:
+    - name: Déployer la configuration de Keepalived pour le serveur principal
+      ansible.builtin.template:
+        src: templates/main.keepalived.conf.j2
+        dest: /etc/keepalived/keepalived.conf
+      notify: Restart keepalived  # On redémarre Keepalived  après la configuration
+
+  handlers:
+    # Les handlers s'exécutent tout à la fin du playbook
+    - name: Restart keepalived
+      ansible.builtin.service: 
+        name: keepalived
+        state: restarted
+
+- name: Configurer Keepalived pour le serveur secondaire
+  hosts: tag_rproxysec
+  become: true
+
+  tasks:
+    - name: Déployer la configuration de Keepalived pour le serveur secondaire
+      ansible.builtin.template:
+        src: templates/sec.keepalived.conf.j2
+        dest: /etc/keepalived/keepalived.conf
+      notify: Restart Keepalived  # On redémarre Keepalived  après la configuration
+    
+  handlers:
+    # Les handlers s'exécutent tout à la fin du playbook
+    - name: Restart Keepalived
+      ansible.builtin.service: 
+        name: keepalived
         state: restarted

@@ -1,0 +1,38 @@
+global_defs {
+    log_global
+    debug
+}
+
+vrrp_script chk_haproxy {
+    script "pgrep haproxy"
+    interval 2
+    weight 0
+}
+
+vrrp_instance VI_1 {
+    state MASTER
+    interface {{ ansible_default_ipv4.interface }}
+    virtual_router_id 51
+    priority 100
+    advert_int 3
+    nopreempt
+    
+    authentication {
+        auth_type PASS
+        auth_pass Securise123
+    }
+    
+    # L'IP locale de cette machine
+    unicast_src_ip {{ ansible_default_ipv4.address }}
+    
+    # Récupère dynamiquement l'IP privée de la machine du groupe rproxysec
+    unicast_peer {
+        {{ hostvars[groups['tag_rproxysec'][0]]['private_ip_address'] }}
+    }
+
+    track_script {
+        chk_haproxy
+    }
+
+    notify_master "/etc/keepalived/attach_eip.sh"
+}

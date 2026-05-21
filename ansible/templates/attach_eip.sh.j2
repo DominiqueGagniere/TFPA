@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e # Arrête le script en cas d'erreur
+
+AWS_REGION="eu-west-3"  # À remplacer par ta région (ex: eu-west-3)
+EIP_ALLOC_ID="eipalloc-01b9177cdf38dc3a2" # À remplacer par ton ID d'allocation
+
+# Récupération du token pour IMDSv2 (Obligatoire sur Amazon Linux 2023)
+TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+
+if [ -z "$INSTANCE_ID" ]; then
+    echo "Erreur : Impossible de récupérer l'ID d'instance." >&2
+    exit 1
+fi
+
+# Exécution de l'association (sans sudo si le service tourne déjà en root)
+aws ec2 associate-address --allocation-id "$EIP_ALLOC_ID" --instance-id "$INSTANCE_ID" --region "$AWS_REGION"
