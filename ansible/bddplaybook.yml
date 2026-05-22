@@ -1,0 +1,45 @@
+---
+- name: 1. Déploiement de la Configuration Galera
+  hosts: tag_bddmain:tag_bddsec
+  become: true
+  gather_facts: true 
+
+  tasks:
+    - name: Déployer la configuration Galera dynamique
+      ansible.builtin.template:
+        src: templates/galera.cnf.j2
+        dest: /etc/mysql/conf.d/galera.cnf 
+        mode: '0644'
+
+- name: 2. Initialiser le Cluster Galera sur le nœud principal (Idempotent)
+  hosts: tag_bddmain
+  become: true
+  gather_facts: true
+  
+  tasks:
+    - name: Vérifier si MariaDB est déjà actif sur le nœud principal
+      ansible.builtin.command: "systemctl is-active mariadb"
+      register: mariadb_status
+      failed_when: false # Évite que la tâche crash si MariaDB est arrêté (ce qui renvoie un code erreur 3)
+      changed_when: false
+
+    - name: Initialiser le cluster Galera (uniquement si MariaDB est arrêté)
+      ansible.builtin.command: "galera_new_cluster"
+      # Cette commande s'exécute SEULEMENT si le statut renvoyé juste au-dessus n'est pas "active"
+      when: mariadb_status.stdout != "active"
+
+    - name: S'assurer que MariaDB est bien démarré sur le nœud principal
+      ansible.builtin.service:
+        name: mariadb
+        state: started
+
+- name: 3. Joindre les nœuds secondaires au Cluster
+  hosts: tag_bddsec
+  become: true
+  gather_facts: true
+  
+  tasks:
+    - name: Démarrer ou redémarrer MariaDB pour rejoindre le cluster actif
+      ansible.builtin.service:
+        name: mariadb
+        state: started # Utiliser 'started' est plus sûr que 'restarted' pour éviter les coupures inutiles au second run

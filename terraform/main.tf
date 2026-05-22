@@ -152,3 +152,59 @@ resource "aws_instance" "rproxysec" {
       role = "rproxysec"
     }
 }
+
+resource "aws_instance" "bddsec" {
+  for_each = var.bddsec_configuration
+    # AMI of novalys_mariadbgalera built with Packer
+    ami           = "ami-0a4188263f7baf878"
+    
+    # AWS Free Tier compatible 
+    instance_type = "t2.micro"
+
+    # Choisi des régles de sécurité à appliquer, ici "ssh" pour autoriser le 22 
+    # Il faut la créer au préalable dans Console sous le nom "ssh" 
+    security_groups = ["ssh", "galera"]
+
+    user_data = <<-EOT
+    #cloud-config
+    users:
+      - name: ${var.automation_useracc_name}
+        shell: /bin/bash
+        sudo: ALL=(ALL) NOPASSWD:ALL
+        ssh_authorized_keys:
+          - ${var.automation_useracc_ssh_public_key}
+    EOT
+
+    tags = {
+      Name = each.value.instance_name
+      role = "bddsec"
+    }
+}
+
+resource "aws_instance" "bddmain" {
+  for_each = var.bddmain_configuration
+    # AMI of novalys_mariadbgalera built with Packer
+    ami           = "ami-0a4188263f7baf878"
+    
+    # AWS Free Tier compatible 
+    instance_type = "t2.micro"
+
+    # Choisi des régles de sécurité à appliquer, ici "ssh" pour autoriser le 22 
+    # Il faut la créer au préalable dans Console sous le nom "ssh" 
+    security_groups = ["ssh", "galera"]
+
+    user_data = <<-EOT
+    #cloud-config
+    users:
+      - name: ${var.automation_useracc_name}
+        shell: /bin/bash
+        sudo: ALL=(ALL) NOPASSWD:ALL
+        ssh_authorized_keys:
+          - ${var.automation_useracc_ssh_public_key}
+    EOT
+
+    tags = {
+      Name = each.value.instance_name
+      role = "bddmain"
+    }
+}

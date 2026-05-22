@@ -23,6 +23,21 @@ rproxysec_configuration = {
     }
 }
 
+bddmain_configuration = {
+    bddmain1 = {
+        instance_name      = "bddmain1"
+    }
+}
+
+bddsec_configuration = {
+    bddsec1 = {
+        instance_name      = "bddsec1"
+    } 
+    bddsec2 = {
+        instance_name      = "bddsec2"
+    }
+}
+
 # ------------------------------------
 #    Automation variables 
 # ------------------------------------

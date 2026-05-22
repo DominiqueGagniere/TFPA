@@ -1,5 +1,6 @@
 packer-templates/
 terraformvbox/
+terraformaws/
 # Local .terraform directories
 .terraform/
 terraform/.terraform/

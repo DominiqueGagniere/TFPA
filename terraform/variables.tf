@@ -17,6 +17,16 @@ variable "rproxysec_configuration" {
     type        = map(any)
   description = "List of secondary reverse proxy virtual machines to be deployed"
 }
+
+variable "bddsec_configuration" {
+    type        = map(any)
+  description = "List of database galera virtual machines to be deployed"
+}
+
+variable "bddmain_configuration" {
+    type        = map(any)
+  description = "List of database galera virtual machines to be deployed"
+}
 # ------------------------------------
 #    Automation configurations 
 # ------------------------------------
