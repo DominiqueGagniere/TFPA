@@ -22,7 +22,7 @@ data "aws_iam_policy_document" "ec2_elastic_ip_policy" {
       "ec2:DescribeAddresses",
       "ec2:AssociateAddress"
     ]
-    resources = ["arn:aws:ec2:::*"]
+    resources = ["*"]
   }
 }
 

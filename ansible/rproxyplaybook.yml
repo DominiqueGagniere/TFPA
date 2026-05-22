@@ -25,7 +25,11 @@
         src: templates/attach_eip.sh.j2
         dest: /etc/keepalived/attach_eip.sh
         mode: '0755'  # Rendre le script exécutable
-
+        
+    - name: Forcer le format de fin de ligne Unix (LF)
+      ansible.builtin.command: sed -i 's/\r$//' /etc/keepalived/attach_eip.sh
+      changed_when: false # Évite de marquer la tâche en "changed" à chaque run
+    
     - name: Copier le fichier de configuration
       ansible.builtin.template:
         src: templates/haproxy.j2
